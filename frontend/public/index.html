@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TrustAgent — Agent Trust Infrastructure</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #060910;
+    --surface: #0d1117;
+    --surface2: #141b26;
+    --border: #1e2d40;
+    --accent: #00e5ff;
+    --accent2: #7c3aed;
+    --green: #00ff88;
+    --yellow: #fbbf24;
+    --red: #ff4444;
+    --text: #e2e8f0;
+    --muted: #4a5568;
+    --mono: 'Space Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Glow orbs */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .orb1 { width: 600px; height: 600px; background: rgba(0,229,255,0.04); top: -200px; right: -200px; }
+  .orb2 { width: 500px; height: 500px; background: rgba(124,58,237,0.04); bottom: -200px; left: -200px; }
+
+  /* Layout */
+  #app { position: relative; z-index: 1; }
+
+  /* Login Screen */
+  #login-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+  }
+
+  .login-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 3rem;
+    width: 100%;
+    max-width: 460px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .login-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), var(--accent2), transparent);
+  }
+
+  .logo-mark {
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
+  }
+
+  .login-title {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin-bottom: 0.25rem;
+  }
+
+  .login-sub {
+    color: var(--muted);
+    font-size: 0.875rem;
+    margin-bottom: 2.5rem;
+    font-family: var(--mono);
+  }
+
+  .form-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+  }
+
+  .form-input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.875rem;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .form-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,229,255,0.1);
+  }
+
+  .form-input::placeholder { color: var(--muted); }
+
+  .btn-primary {
+    width: 100%;
+    background: linear-gradient(135deg, var(--accent), #0099cc);
+    border: none;
+    border-radius: 10px;
+    padding: 0.875rem;
+    color: #000;
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 0.9rem;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    margin-top: 1rem;
+  }
+
+  .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 1.5rem 0;
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-family: var(--mono);
+  }
+  .divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .alert {
+    margin-top: 1.5rem;
+    padding: 0.875rem 1rem;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    font-family: var(--mono);
+    line-height: 1.5;
+  }
+  .alert-info { background: rgba(0,229,255,0.08); border: 1px solid rgba(0,229,255,0.2); color: var(--accent); }
+  .alert-error { background: rgba(255,68,68,0.08); border: 1px solid rgba(255,68,68,0.2); color: var(--red); }
+  .alert-success { background: rgba(0,255,136,0.08); border: 1px solid rgba(0,255,136,0.2); color: var(--green); }
+
+  /* Main App */
+  #main-app { display: none; }
+
+  /* Header */
+  header {
+    background: rgba(13,17,23,0.95);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .header-logo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .header-logo-mark {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+
+  .header-title {
+    font-size: 1.125rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+
+  .header-sub {
+    font-size: 0.65rem;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .api-key-badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.4rem 0.75rem;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .dot-green { width: 6px; height: 6px; background: var(--green); border-radius: 50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+
+  .btn-logout {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.4rem 0.75rem;
+    color: var(--muted);
+    font-size: 0.75rem;
+    cursor: pointer;
+    font-family: var(--sans);
+    transition: all 0.2s;
+  }
+  .btn-logout:hover { border-color: var(--red); color: var(--red); }
+
+  /* Navigation */
+  nav {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex;
+    gap: 0;
+  }
+
+  .nav-tab {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 1rem 1.25rem;
+    color: var(--muted);
+    font-family: var(--sans);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .nav-tab:hover { color: var(--text); }
+  .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* Main content */
+  main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  /* Tab panels */
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* Stats Grid */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .stat-card:hover { border-color: var(--accent); }
+
+  .stat-card::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    border-radius: 16px 16px 0 0;
+  }
+
+  .stat-card.blue::after { background: var(--accent); }
+  .stat-card.green::after { background: var(--green); }
+  .stat-card.yellow::after { background: var(--yellow); }
+  .stat-card.red::after { background: var(--red); }
+
+  .stat-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.75rem;
+  }
+
+  .stat-value {
+    font-size: 2.5rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1;
+  }
+
+  .stat-card.blue .stat-value { color: var(--accent); }
+  .stat-card.green .stat-value { color: var(--green); }
+  .stat-card.yellow .stat-value { color: var(--yellow); }
+  .stat-card.red .stat-value { color: var(--red); }
+
+  /* Section header */
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+  }
+
+  .section-title {
+    font-size: 1.25rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+
+  .btn-refresh {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-family: var(--sans);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .btn-refresh:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Empty state */
+  .empty-state {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 4rem;
+    text-align: center;
+  }
+
+  .empty-icon { font-size: 3rem; margin-bottom: 1rem; }
+  .empty-title { font-size: 1.125rem; font-weight: 700; margin-bottom: 0.5rem; }
+  .empty-sub { color: var(--muted); font-size: 0.875rem; }
+
+  /* Agent Card */
+  .agent-grid { display: grid; gap: 1rem; }
+
+  .agent-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    transition: all 0.2s;
+    cursor: pointer;
+  }
+
+  .agent-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,229,255,0.05); }
+
+  .agent-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+  }
+
+  .agent-name {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+  }
+
+  .agent-id {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--muted);
+  }
+
+  /* Trust Badge */
+  .trust-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: 100px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    font-family: var(--mono);
+    letter-spacing: 0.05em;
+  }
+
+  .trust-badge.active { background: rgba(0,255,136,0.1); color: var(--green); border: 1px solid rgba(0,255,136,0.2); }
+  .trust-badge.warning { background: rgba(251,191,36,0.1); color: var(--yellow); border: 1px solid rgba(251,191,36,0.2); }
+  .trust-badge.breach { background: rgba(255,68,68,0.1); color: var(--red); border: 1px solid rgba(255,68,68,0.2); }
+  .trust-badge.suspended { background: rgba(100,100,100,0.1); color: var(--muted); border: 1px solid var(--border); }
+
+  /* Trust Bar */
+  .trust-bar-wrap {
+    background: var(--surface2);
+    border-radius: 100px;
+    height: 4px;
+    margin-bottom: 1rem;
+    overflow: hidden;
+  }
+
+  .trust-bar-fill {
+    height: 100%;
+    border-radius: 100px;
+    transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  .trust-bar-fill.active { background: linear-gradient(90deg, var(--green), #00cc6a); }
+  .trust-bar-fill.warning { background: linear-gradient(90deg, var(--yellow), #f59e0b); }
+  .trust-bar-fill.breach { background: linear-gradient(90deg, var(--red), #cc0000); }
+  .trust-bar-fill.suspended { background: var(--muted); }
+
+  .agent-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .caps-list { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+  .cap-tag {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.65rem;
+    font-family: var(--mono);
+    color: var(--muted);
+  }
+
+  .agent-actions { display: flex; gap: 0.75rem; }
+
+  .btn-action {
+    background: none;
+    border: none;
+    font-size: 0.7rem;
+    font-weight: 700;
+    font-family: var(--sans);
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    text-transform: uppercase;
+  }
+
+  .btn-action.blue { color: var(--accent); }
+  .btn-action.purple { color: #a78bfa; }
+  .btn-action:hover { opacity: 0.7; }
+
+  /* Form Card */
+  .form-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2rem;
+    max-width: 520px;
+  }
+
+  .form-card-title {
+    font-size: 1.25rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .form-group { margin-bottom: 1.25rem; }
+
+  .btn-submit {
+    width: 100%;
+    background: linear-gradient(135deg, var(--accent2), #9333ea);
+    border: none;
+    border-radius: 10px;
+    padding: 0.875rem;
+    color: #fff;
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 0.9rem;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    margin-top: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  .btn-submit:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn-submit:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .btn-submit.green-btn {
+    background: linear-gradient(135deg, #00cc6a, #009950);
+    color: #000;
+  }
+
+  /* Private key box */
+  .private-key-box {
+    margin-top: 1.5rem;
+    background: rgba(251,191,36,0.05);
+    border: 1px solid rgba(251,191,36,0.2);
+    border-radius: 12px;
+    padding: 1.25rem;
+  }
+
+  .private-key-warning {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--yellow);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .private-key-text {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: #a0916a;
+    background: var(--bg);
+    padding: 0.75rem;
+    border-radius: 8px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 150px;
+    overflow-y: auto;
+  }
+
+  /* Select */
+  .form-select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.875rem;
+    outline: none;
+    transition: border-color 0.2s;
+    appearance: none;
+    cursor: pointer;
+  }
+
+  .form-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,229,255,0.1); }
+
+  /* Audit Table */
+  .audit-table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .audit-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+  }
+
+  .audit-table thead {
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .audit-table th {
+    padding: 0.875rem 1.25rem;
+    text-align: left;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .audit-table td {
+    padding: 0.875rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 0.75rem;
+  }
+
+  .audit-table tr:last-child td { border-bottom: none; }
+  .audit-table tr:hover td { background: var(--surface2); }
+  .audit-table tr.anomaly td { background: rgba(255,68,68,0.04); }
+
+  .badge-anomaly { color: var(--red); font-weight: 700; }
+  .badge-normal { color: var(--green); }
+
+  /* Loading spinner */
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    display: inline-block;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Page title */
+  .page-title {
+    font-size: 1.75rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin-bottom: 0.375rem;
+  }
+
+  .page-sub {
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-family: var(--mono);
+    margin-bottom: 2rem;
+  }
+
+  /* Notification toast */
+  #toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 1000;
+    max-width: 400px;
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  #toast.show {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  .toast-inner {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    font-size: 0.8rem;
+    font-family: var(--mono);
+    line-height: 1.5;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+
+  .toast-inner.success { border-color: rgba(0,255,136,0.3); color: var(--green); }
+  .toast-inner.error { border-color: rgba(255,68,68,0.3); color: var(--red); }
+  .toast-inner.info { border-color: rgba(0,229,255,0.3); color: var(--accent); }
+
+  @media (max-width: 768px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    header { padding: 0 1rem; }
+    main { padding: 1rem; }
+    nav { padding: 0 1rem; overflow-x: auto; }
+    .api-key-badge { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+
+<div id="app">
+
+  <!-- LOGIN SCREEN -->
+  <div id="login-screen">
+    <div class="login-card">
+      <div class="logo-mark">🛡</div>
+      <h1 class="login-title">TrustAgent</h1>
+      <p class="login-sub">// agent-to-agent trust infrastructure</p>
+
+      <div class="form-group">
+        <label class="form-label">Organization Name</label>
+        <input class="form-input" id="org-name-input" placeholder="e.g. Acme Corp" />
+      </div>
+      <button class="btn-primary" id="create-org-btn">Create Organization</button>
+
+      <div class="divider">or use existing key</div>
+
+      <div class="form-group">
+        <label class="form-label">API Key</label>
+        <input class="form-input" id="api-key-input" placeholder="ta_..." />
+      </div>
+      <button class="btn-primary" id="use-key-btn" style="background: linear-gradient(135deg, var(--accent2), #9333ea); color: #fff;">
+        Enter Dashboard
+      </button>
+
+      <div id="login-message"></div>
+    </div>
+  </div>
+
+  <!-- MAIN APP -->
+  <div id="main-app">
+    <header>
+      <div class="header-logo">
+        <div class="header-logo-mark">🛡</div>
+        <div>
+          <div class="header-title">TrustAgent</div>
+          <div class="header-sub">// agent trust infrastructure</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="api-key-badge">
+          <span class="dot-green"></span>
+          <span id="key-display">ta_...</span>
+        </div>
+        <button class="btn-logout" id="logout-btn">Logout</button>
+      </div>
+    </header>
+
+    <nav>
+      <button class="nav-tab active" data-tab="dashboard">Dashboard</button>
+      <button class="nav-tab" data-tab="register">Register Agent</button>
+      <button class="nav-tab" data-tab="behavior">Log Behavior</button>
+      <button class="nav-tab" data-tab="audit">Audit Trail</button>
+    </nav>
+
+    <main>
+
+      <!-- DASHBOARD TAB -->
+      <div class="tab-panel active" id="tab-dashboard">
+        <div class="page-title">Agent Network</div>
+        <div class="page-sub">// real-time trust monitoring across all agents</div>
+
+        <div class="stats-grid">
+          <div class="stat-card blue">
+            <div class="stat-label">Total Agents</div>
+            <div class="stat-value" id="stat-total">0</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-label">Active</div>
+            <div class="stat-value" id="stat-active">0</div>
+          </div>
+          <div class="stat-card yellow">
+            <div class="stat-label">Warning</div>
+            <div class="stat-value" id="stat-warning">0</div>
+          </div>
+          <div class="stat-card red">
+            <div class="stat-label">Breach</div>
+            <div class="stat-value" id="stat-breach">0</div>
+          </div>
+        </div>
+
+        <div class="section-header">
+          <div class="section-title">Agents</div>
+          <button class="btn-refresh" id="refresh-btn">↻ Refresh</button>
+        </div>
+
+        <div id="agent-list">
+          <div class="empty-state">
+            <div class="empty-icon">🤖</div>
+            <div class="empty-title">No agents yet</div>
+            <div class="empty-sub">Go to Register Agent to create your first agent</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- REGISTER TAB -->
+      <div class="tab-panel" id="tab-register">
+        <div class="page-title">Register Agent</div>
+        <div class="page-sub">// assign cryptographic identity to a new agent</div>
+
+        <div class="form-card">
+          <div class="form-card-title">New Agent Identity</div>
+
+          <div class="form-group">
+            <label class="form-label">Agent Name</label>
+            <input class="form-input" id="agent-name-input" placeholder="e.g. PaymentBot, EmailAgent" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Capabilities (comma separated)</label>
+            <input class="form-input" id="agent-caps-input" placeholder="e.g. read_emails, send_slack, process_payments" />
+          </div>
+
+          <button class="btn-submit" id="register-agent-btn">
+            <span>⚡ Register Agent</span>
+          </button>
+        </div>
+
+        <div id="private-key-box" style="display:none; max-width:520px;" class="private-key-box">
+          <div class="private-key-warning">⚠ Save private key — shown only once</div>
+          <div class="private-key-text" id="private-key-text"></div>
+        </div>
+      </div>
+
+      <!-- BEHAVIOR TAB -->
+      <div class="tab-panel" id="tab-behavior">
+        <div class="page-title">Log Behavior</div>
+        <div class="page-sub">// submit agent actions for real-time ML trust scoring</div>
+
+        <div class="form-card">
+          <div class="form-card-title">Behavior Event</div>
+
+          <div class="form-group">
+            <label class="form-label">Select Agent</label>
+            <select class="form-select" id="behavior-agent-select">
+              <option value="">Choose an agent...</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Action</label>
+            <input class="form-input" id="behavior-action-input" placeholder="e.g. send_email, read_database, process_payment" />
+          </div>
+
+          <button class="btn-submit green-btn" id="log-behavior-btn">
+            <span>▶ Score Behavior</span>
+          </button>
+        </div>
+
+        <div id="behavior-result" style="display:none; margin-top:1.5rem; max-width:520px;"></div>
+      </div>
+
+      <!-- AUDIT TAB -->
+      <div class="tab-panel" id="tab-audit">
+        <div class="page-title">Audit Trail</div>
+        <div class="page-sub">// tamper-proof behavioral forensics log</div>
+
+        <div class="form-group" style="max-width:520px; margin-bottom:1.5rem;">
+          <label class="form-label">Select Agent</label>
+          <select class="form-select" id="audit-agent-select">
+            <option value="">Choose an agent...</option>
+          </select>
+        </div>
+
+        <div id="audit-content">
+          <div class="empty-state">
+            <div class="empty-icon">📋</div>
+            <div class="empty-title">Select an agent</div>
+            <div class="empty-sub">Choose an agent above to view its full audit trail</div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"><div class="toast-inner" id="toast-inner"></div></div>
+
+<script>
+const API = 'http://localhost:8000';
+let apiKey = localStorage.getItem('api_key') || '';
+let agents = [];
+
+// ─── Utilities ───────────────────────────────────────────────────────────────
+
+function toast(msg, type = 'info') {
+  const t = document.getElementById('toast');
+  const inner = document.getElementById('toast-inner');
+  inner.textContent = msg;
+  inner.className = `toast-inner ${type}`;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+function setLoading(btn, loading, text) {
+  btn.disabled = loading;
+  btn.innerHTML = loading
+    ? `<span class="spinner"></span> Loading...`
+    : text;
+}
+
+async function req(path, options = {}) {
+  const res = await fetch(API + path, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      ...(options.headers || {})
+    }
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || 'Request failed');
+  return data;
+}
+
+function getTrustClass(status) {
+  return status === 'active' ? 'active' : status === 'warning' ? 'warning' : status === 'breach' ? 'breach' : 'suspended';
+}
+
+function getTrustIcon(status) {
+  return status === 'active' ? '✓' : status === 'warning' ? '⚠' : status === 'breach' ? '✕' : '—';
+}
+
+// ─── Login ────────────────────────────────────────────────────────────────────
+
+document.getElementById('create-org-btn').addEventListener('click', async () => {
+  const name = document.getElementById('org-name-input').value.trim();
+  if (!name) return toast('Enter an organization name', 'error');
+  const btn = document.getElementById('create-org-btn');
+  setLoading(btn, true, '');
+  try {
+    const data = await fetch(API + '/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    }).then(r => r.json());
+    if (data.api_key) {
+      const msg = document.getElementById('login-message');
+      msg.innerHTML = `<div class="alert alert-success">✅ Org created!<br/>API Key: <strong>${data.api_key}</strong><br/>Saved automatically.</div>`;
+      localStorage.setItem('api_key', data.api_key);
+      apiKey = data.api_key;
+      setTimeout(enterApp, 1500);
+    } else {
+      document.getElementById('login-message').innerHTML = `<div class="alert alert-error">❌ ${data.detail || 'Error'}</div>`;
+    }
+  } catch(e) {
+    document.getElementById('login-message').innerHTML = `<div class="alert alert-error">❌ ${e.message}</div>`;
+  }
+  setLoading(btn, false, 'Create Organization');
+});
+
+document.getElementById('use-key-btn').addEventListener('click', () => {
+  const key = document.getElementById('api-key-input').value.trim();
+  if (!key) return toast('Enter your API key', 'error');
+  localStorage.setItem('api_key', key);
+  apiKey = key;
+  enterApp();
+});
+
+document.getElementById('api-key-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('use-key-btn').click();
+});
+
+function enterApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('main-app').style.display = 'block';
+  document.getElementById('key-display').textContent = apiKey.slice(0, 24) + '...';
+  fetchAgents();
+}
+
+document.getElementById('logout-btn').addEventListener('click', () => {
+  localStorage.removeItem('api_key');
+  apiKey = '';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('main-app').style.display = 'none';
+});
+
+// ─── Tabs ─────────────────────────────────────────────────────────────────────
+
+document.querySelectorAll('.nav-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+// ─── Agents ───────────────────────────────────────────────────────────────────
+
+async function fetchAgents() {
+  try {
+    agents = await req('/api/agents/list');
+    renderAgents();
+    updateStats();
+    populateSelects();
+  } catch(e) {
+    toast('Failed to load agents: ' + e.message, 'error');
+  }
+}
+
+document.getElementById('refresh-btn').addEventListener('click', fetchAgents);
+
+function updateStats() {
+  document.getElementById('stat-total').textContent = agents.length;
+  document.getElementById('stat-active').textContent = agents.filter(a => a.status === 'active').length;
+  document.getElementById('stat-warning').textContent = agents.filter(a => a.status === 'warning').length;
+  document.getElementById('stat-breach').textContent = agents.filter(a => a.status === 'breach' || a.status === 'suspended').length;
+}
+
+function populateSelects() {
+  const opts = agents.map(a => `<option value="${a.id}">${a.name} — Trust: ${a.trust_score.toFixed(1)}</option>`).join('');
+  document.getElementById('behavior-agent-select').innerHTML = '<option value="">Choose an agent...</option>' + opts;
+  document.getElementById('audit-agent-select').innerHTML = '<option value="">Choose an agent...</option>' + opts;
+}
+
+function renderAgents() {
+  const list = document.getElementById('agent-list');
+  if (!agents.length) {
+    list.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">🤖</div>
+      <div class="empty-title">No agents yet</div>
+      <div class="empty-sub">Go to Register Agent to create your first agent</div>
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = `<div class="agent-grid">${agents.map(a => {
+    const cls = getTrustClass(a.status);
+    return `<div class="agent-card">
+      <div class="agent-card-top">
+        <div>
+          <div class="agent-name">${a.name}</div>
+          <div class="agent-id">${a.id}</div>
+        </div>
+        <span class="trust-badge ${cls}">${getTrustIcon(a.status)} ${a.trust_score.toFixed(1)} &nbsp;${a.status}</span>
+      </div>
+      <div class="trust-bar-wrap">
+        <div class="trust-bar-fill ${cls}" style="width:${a.trust_score}%"></div>
+      </div>
+      <div class="agent-footer">
+        <div class="caps-list">
+          ${(a.capabilities || []).map(c => `<span class="cap-tag">${c}</span>`).join('')}
+        </div>
+        <div class="agent-actions">
+          <button class="btn-action blue" onclick="goToBehavior('${a.id}')">Log</button>
+          <button class="btn-action purple" onclick="goToAudit('${a.id}')">Audit</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function goToBehavior(agentId) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelector('[data-tab="behavior"]').classList.add('active');
+  document.getElementById('tab-behavior').classList.add('active');
+  document.getElementById('behavior-agent-select').value = agentId;
+}
+
+function goToAudit(agentId) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelector('[data-tab="audit"]').classList.add('active');
+  document.getElementById('tab-audit').classList.add('active');
+  document.getElementById('audit-agent-select').value = agentId;
+  loadAudit(agentId);
+}
+
+// ─── Register Agent ───────────────────────────────────────────────────────────
+
+document.getElementById('register-agent-btn').addEventListener('click', async () => {
+  const name = document.getElementById('agent-name-input').value.trim();
+  const caps = document.getElementById('agent-caps-input').value.split(',').map(c => c.trim()).filter(Boolean);
+  if (!name) return toast('Enter an agent name', 'error');
+  const btn = document.getElementById('register-agent-btn');
+  setLoading(btn, true, '');
+  try {
+    const data = await req('/api/agents/register', {
+      method: 'POST',
+      body: JSON.stringify({ name, capabilities: caps })
+    });
+    toast(`✅ Agent "${name}" registered with trust score 100`, 'success');
+    document.getElementById('agent-name-input').value = '';
+    document.getElementById('agent-caps-input').value = '';
+    document.getElementById('private-key-box').style.display = 'block';
+    document.getElementById('private-key-text').textContent = data.private_key;
+    fetchAgents();
+  } catch(e) {
+    toast('❌ ' + e.message, 'error');
+  }
+  setLoading(btn, false, '<span>⚡ Register Agent</span>');
+});
+
+// ─── Log Behavior ─────────────────────────────────────────────────────────────
+
+document.getElementById('log-behavior-btn').addEventListener('click', async () => {
+  const agentId = document.getElementById('behavior-agent-select').value;
+  const action = document.getElementById('behavior-action-input').value.trim();
+  if (!agentId) return toast('Select an agent', 'error');
+  if (!action) return toast('Enter an action', 'error');
+  const btn = document.getElementById('log-behavior-btn');
+  setLoading(btn, true, '');
+  try {
+    const data = await req(`/api/agents/${agentId}/behavior`, {
+      method: 'POST',
+      body: JSON.stringify({ action, payload: { timestamp: Date.now() } })
+    });
+    const isAnomaly = data.is_anomaly;
+    const resultBox = document.getElementById('behavior-result');
+    resultBox.style.display = 'block';
+    resultBox.innerHTML = `<div class="form-card" style="border-color: ${isAnomaly ? 'rgba(255,68,68,0.3)' : 'rgba(0,255,136,0.3)'}">
+      <div style="font-size:0.7rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:1rem;">Scoring Result</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+        <div>
+          <div style="font-size:0.65rem; color:var(--muted); margin-bottom:0.25rem; font-family:var(--mono);">TRUST SCORE</div>
+          <div style="font-size:2rem; font-weight:800; color:${data.new_trust_score >= 80 ? 'var(--green)' : data.new_trust_score >= 50 ? 'var(--yellow)' : 'var(--red)'};">${data.new_trust_score.toFixed(1)}</div>
+        </div>
+        <div>
+          <div style="font-size:0.65rem; color:var(--muted); margin-bottom:0.25rem; font-family:var(--mono);">ANOMALY DETECTED</div>
+          <div style="font-size:2rem; font-weight:800; color:${isAnomaly ? 'var(--red)' : 'var(--green)'}">${isAnomaly ? '🚨 YES' : '✅ NO'}</div>
+        </div>
+        <div>
+          <div style="font-size:0.65rem; color:var(--muted); margin-bottom:0.25rem; font-family:var(--mono);">STATUS</div>
+          <span class="trust-badge ${getTrustClass(data.status)}">${data.status}</span>
+        </div>
+        <div>
+          <div style="font-size:0.65rem; color:var(--muted); margin-bottom:0.25rem; font-family:var(--mono);">REASON</div>
+          <div style="font-family:var(--mono); font-size:0.75rem; color:var(--text);">${data.reason}</div>
+        </div>
+      </div>
+    </div>`;
+    document.getElementById('behavior-action-input').value = '';
+    fetchAgents();
+    toast(isAnomaly ? '🚨 Anomaly detected!' : '✅ Behavior scored — no anomaly', isAnomaly ? 'error' : 'success');
+  } catch(e) {
+    toast('❌ ' + e.message, 'error');
+  }
+  setLoading(btn, false, '<span>▶ Score Behavior</span>');
+});
+
+// ─── Audit Trail ─────────────────────────────────────────────────────────────
+
+document.getElementById('audit-agent-select').addEventListener('change', e => {
+  if (e.target.value) loadAudit(e.target.value);
+});
+
+async function loadAudit(agentId) {
+  const content = document.getElementById('audit-content');
+  content.innerHTML = `<div class="empty-state"><div class="spinner" style="width:24px;height:24px;border-color:var(--border);border-top-color:var(--accent);margin:0 auto;"></div></div>`;
+  try {
+    const data = await req(`/api/agents/${agentId}/audit-trail`);
+    const logs = data.behavior_logs;
+    if (!logs.length) {
+      content.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No logs yet</div><div class="empty-sub">Log some behaviors to see the audit trail</div></div>`;
+      return;
+    }
+    content.innerHTML = `
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;">
+        <div style="font-size:1rem;font-weight:700;">${data.agent_name}</div>
+        <span class="trust-badge ${getTrustClass(data.current_status)}">${getTrustIcon(data.current_status)} ${data.current_trust_score.toFixed(1)} ${data.current_status}</span>
+      </div>
+      <div class="audit-table-wrap">
+        <table class="audit-table">
+          <thead>
+            <tr>
+              <th>Action</th>
+              <th>Anomaly</th>
+              <th>Score</th>
+              <th>Payload Hash</th>
+              <th>Timestamp</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${logs.map(l => `<tr class="${l.is_anomaly ? 'anomaly' : ''}">
+              <td>${l.action}</td>
+              <td class="${l.is_anomaly ? 'badge-anomaly' : 'badge-normal'}">${l.is_anomaly ? '🚨 YES' : '✅ No'}</td>
+              <td>${l.anomaly_score.toFixed(4)}</td>
+              <td style="color:var(--muted);font-size:0.65rem;">${(l.payload_hash || '').slice(0, 16)}...</td>
+              <td style="color:var(--muted);">${new Date(l.timestamp).toLocaleString()}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  } catch(e) {
+    toast('Failed to load audit trail: ' + e.message, 'error');
+  }
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+
+if (apiKey) enterApp();
+</script>
+</body>
+</html>

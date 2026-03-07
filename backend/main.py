@@ -1,0 +1,47 @@
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from database.connection import create_tables
+from api.auth import router as auth_router
+from api.agents import router as agents_router
+import uvicorn
+
+app = FastAPI(
+    title="TrustAgent API",
+    description="Agent-to-Agent Trust Verification Infrastructure",
+    version="1.0.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.on_event("startup")
+def startup():
+    create_tables()
+
+app.include_router(auth_router, prefix="/api/auth", tags=["Authentication"])
+app.include_router(agents_router, prefix="/api/agents", tags=["Agents"])
+
+@app.get("/")
+def root():
+    return {
+        "product": "TrustAgent",
+        "version": "1.0.0",
+        "status": "running",
+        "docs": "/docs"
+    }
+
+@app.get("/health")
+def health():
+    return {"status": "healthy"}
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
