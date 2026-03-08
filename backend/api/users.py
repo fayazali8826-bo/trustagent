@@ -1,30 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from database.connection import get_db
 from database.models import User, Organization
-from core.crypto import CryptoEngine
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-import os
-from fastapi import Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-
-limiter = Limiter(key_func=get_remote_address)
-
-@router.post("/register")
-@limiter.limit("5/minute")
-def register_user(request: Request, data: UserRegister, db: Session = Depends(get_db)):
-    # ... rest of your existing code
-
-@router.post("/login")
-@limiter.limit("10/minute")
-def login_user(request: Request, data: UserLogin, db: Session = Depends(get_db)):
-    # ... rest of your existing code
+import os
+import uuid
+import secrets
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
 SECRET_KEY = os.getenv("SECRET_KEY", "trustagent-secret")
 ALGORITHM = "HS256"
@@ -32,27 +21,33 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+
 class UserRegister(BaseModel):
     email: str
     password: str
     name: str
     company: str = ""
 
+
 class UserLogin(BaseModel):
     email: str
     password: str
 
+
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
+
 def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
+
 
 def create_token(data: dict) -> str:
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
 
 def get_current_user(token: str, db: Session):
     try:
@@ -64,16 +59,15 @@ def get_current_user(token: str, db: Session):
     except JWTError:
         return None
 
+
 @router.post("/register")
-def register_user(data: UserRegister, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def register_user(request: Request, data: UserRegister, db: Session = Depends(get_db)):
     try:
-        # Check email exists
         existing = db.query(User).filter(User.email == data.email).first()
         if existing:
             raise HTTPException(status_code=400, detail="Email already registered")
 
-        # Create user
-        import uuid
         user_id = str(uuid.uuid4())
         user = User(
             id=user_id,
@@ -85,8 +79,6 @@ def register_user(data: UserRegister, db: Session = Depends(get_db)):
         db.add(user)
         db.flush()
 
-        # Create their organization
-        import secrets
         api_key = secrets.token_urlsafe(32)
         org_id = str(uuid.uuid4())
         org = Organization(
@@ -118,8 +110,10 @@ def register_user(data: UserRegister, db: Session = Depends(get_db)):
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.post("/login")
-def login_user(data: UserLogin, db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def login_user(request: Request, data: UserLogin, db: Session = Depends(get_db)):
     try:
         user = db.query(User).filter(User.email == data.email).first()
         if not user or not verify_password(data.password, user.password_hash):
@@ -146,6 +140,7 @@ def login_user(data: UserLogin, db: Session = Depends(get_db)):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.get("/me")
 def get_me(request: Request, db: Session = Depends(get_db)):
