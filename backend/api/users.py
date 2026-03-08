@@ -8,6 +8,21 @@ from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 import os
+from fastapi import Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+limiter = Limiter(key_func=get_remote_address)
+
+@router.post("/register")
+@limiter.limit("5/minute")
+def register_user(request: Request, data: UserRegister, db: Session = Depends(get_db)):
+    # ... rest of your existing code
+
+@router.post("/login")
+@limiter.limit("10/minute")
+def login_user(request: Request, data: UserLogin, db: Session = Depends(get_db)):
+    # ... rest of your existing code
 
 router = APIRouter()
 
