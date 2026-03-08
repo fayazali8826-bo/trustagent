@@ -23,7 +23,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def create_tables():
     # Drop all and recreate — picks up new columns
-    Base.metadata.drop_all(bind=engine)
+    
     Base.metadata.create_all(bind=engine)
 
 def get_db():
