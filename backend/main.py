@@ -1,7 +1,7 @@
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
+from api.users import router as users_router
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -32,6 +32,7 @@ app.add_middleware(
 
 app.include_router(auth_router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(agents_router, prefix="/api/agents", tags=["Agents"])
+app.include_router(users_router, prefix="/api/users", tags=["Users"])
 
 @app.get("/")
 def root():
