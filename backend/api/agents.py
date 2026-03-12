@@ -9,35 +9,28 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 import json
+import uuid
 
 router = APIRouter()
 
+
 class AgentCreate(BaseModel):
     name: str
-    capabilities: List[str]
+    description: str = ""
+    capabilities: List[str] = []
+
 
 class BehaviorEvent(BaseModel):
-    action: str
-    payload: dict
+    action_type: str
+    payload: dict = {}
+
 
 class InteractionRequest(BaseModel):
     sender_id: str
     receiver_id: str
-    message: dict
+    message: str
     signature: str
 
-class AgentResponse(BaseModel):
-    id: str
-    name: str
-    trust_score: float
-    status: str
-    capabilities: list
-    public_key: str
-    private_key: str
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
 
 @router.post("/register")
 def register_agent(
@@ -45,51 +38,60 @@ def register_agent(
     org: Organization = Depends(get_current_org),
     db: Session = Depends(get_db)
 ):
-    """Register a new agent and generate its cryptographic identity"""
     keypair = CryptoEngine.generate_keypair()
 
     agent = Agent(
+        id=str(uuid.uuid4()),
         name=data.name,
+        description=data.description,
         organization_id=org.id,
         public_key=keypair["public_key"],
-        capabilities=data.capabilities,
+        private_key=keypair["private_key"],
         trust_score=100.0,
-        status="active"
+        status="active",
+        total_actions=0,
+        anomaly_count=0
     )
     db.add(agent)
     db.commit()
     db.refresh(agent)
 
     return {
+        "agent_id": agent.id,
         "id": agent.id,
         "name": agent.name,
+        "description": agent.description,
         "trust_score": agent.trust_score,
         "status": agent.status,
-        "capabilities": agent.capabilities,
         "public_key": keypair["public_key"],
         "private_key": keypair["private_key"],
         "message": "Store private key securely — never share it!"
     }
+
 
 @router.get("/list")
 def list_agents(
     org: Organization = Depends(get_current_org),
     db: Session = Depends(get_db)
 ):
-    """List all agents for an organization"""
-    agents = db.query(Agent).filter(Agent.org_id == org.id).all()
+    agents = db.query(Agent).filter(
+        Agent.organization_id == org.id
+    ).all()
     return [
         {
             "id": a.id,
             "name": a.name,
+            "description": a.description,
             "trust_score": a.trust_score,
             "status": a.status,
-            "capabilities": a.capabilities,
-            "last_seen": a.last_seen,
+            "total_actions": a.total_actions,
+            "anomaly_count": a.anomaly_count,
+            "last_active": a.last_active,
             "created_at": a.created_at
         }
         for a in agents
     ]
+
 
 @router.get("/{agent_id}")
 def get_agent(
@@ -97,10 +99,9 @@ def get_agent(
     org: Organization = Depends(get_current_org),
     db: Session = Depends(get_db)
 ):
-    """Get a single agent's details and trust score"""
     agent = db.query(Agent).filter(
         Agent.id == agent_id,
-        Agent.org_id == org.id
+        Agent.organization_id == org.id
     ).first()
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
@@ -112,20 +113,25 @@ def get_agent(
     return {
         "id": agent.id,
         "name": agent.name,
+        "description": agent.description,
         "trust_score": agent.trust_score,
         "status": agent.status,
-        "capabilities": agent.capabilities,
-        "last_seen": agent.last_seen,
+        "total_actions": agent.total_actions,
+        "anomaly_count": agent.anomaly_count,
+        "last_active": agent.last_active,
+        "created_at": agent.created_at,
         "recent_behaviors": [
             {
-                "action": b.action,
-                "is_anomaly": b.is_anomaly,
+                "action_type": b.action_type,
+                "is_anomalous": b.is_anomalous,
                 "anomaly_score": b.anomaly_score,
+                "trust_score_after": b.trust_score_after,
                 "timestamp": b.timestamp
             }
             for b in recent_behaviors
         ]
     }
+
 
 @router.post("/{agent_id}/behavior")
 def log_behavior(
@@ -134,45 +140,55 @@ def log_behavior(
     org: Organization = Depends(get_current_org),
     db: Session = Depends(get_db)
 ):
-    """Log a behavior event and update trust score in real time"""
     agent = db.query(Agent).filter(
         Agent.id == agent_id,
-        Agent.org_id == org.id
+        Agent.organization_id == org.id
     ).first()
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
 
-    # Score the behavior using ML engine
-    result = trust_engine.score_behavior(agent_id, event.action, event.payload)
+    # Score with ML engine
+    result = trust_engine.score_behavior(agent_id, event.action_type, event.payload)
 
-    # Log it
+    trust_before = agent.trust_score
+
+    # Log behavior
     log = BehaviorLog(
+        id=str(uuid.uuid4()),
         agent_id=agent_id,
-        action=event.action,
+        action_type=event.action_type,
         payload_hash=CryptoEngine.hash_payload(event.payload),
-        is_anomaly=result["is_anomaly"],
+        trust_score_before=trust_before,
+        is_anomalous=result["is_anomaly"],
         anomaly_score=result["anomaly_score"],
-        metadata={"reason": result["reason"]}
+        extra_data=json.dumps({"reason": result.get("reason", "")})
     )
     db.add(log)
 
     # Update trust score
     new_trust = trust_engine.calculate_trust_score(agent.trust_score, result)
     agent.trust_score = new_trust
+    agent.trust_score_after = new_trust
+    log.trust_score_after = new_trust
     agent.status = trust_engine.get_status(new_trust)
-    agent.last_seen = datetime.utcnow()
+    agent.last_active = datetime.utcnow()
+    agent.total_actions = (agent.total_actions or 0) + 1
+    if result["is_anomaly"]:
+        agent.anomaly_count = (agent.anomaly_count or 0) + 1
 
-    # Train ML model every 20 behavior logs
-    total_logs = db.query(BehaviorLog).filter(BehaviorLog.agent_id == agent_id).count()
-    if total_logs % 20 == 0:
+    # Retrain ML model every 20 logs
+    total_logs = db.query(BehaviorLog).filter(
+        BehaviorLog.agent_id == agent_id
+    ).count()
+    if total_logs > 0 and total_logs % 20 == 0:
         all_logs = db.query(BehaviorLog).filter(
             BehaviorLog.agent_id == agent_id
         ).all()
         logs_data = [
             {
                 "hour": l.timestamp.hour,
-                "action": l.action,
-                "anomaly_score": l.anomaly_score,
+                "action": l.action_type,
+                "anomaly_score": l.anomaly_score or 0,
                 "payload_size": 0
             }
             for l in all_logs
@@ -183,13 +199,15 @@ def log_behavior(
 
     return {
         "agent_id": agent_id,
-        "action": event.action,
-        "is_anomaly": result["is_anomaly"],
+        "action_type": event.action_type,
+        "is_anomalous": result["is_anomaly"],
         "anomaly_score": result["anomaly_score"],
-        "new_trust_score": new_trust,
+        "trust_score_before": trust_before,
+        "trust_score": new_trust,
         "status": agent.status,
-        "reason": result["reason"]
+        "message": result.get("reason", "")
     }
+
 
 @router.post("/verify-interaction")
 def verify_interaction(
@@ -197,10 +215,9 @@ def verify_interaction(
     org: Organization = Depends(get_current_org),
     db: Session = Depends(get_db)
 ):
-    """Verify a signed message between two agents"""
     sender = db.query(Agent).filter(
         Agent.id == data.sender_id,
-        Agent.org_id == org.id
+        Agent.organization_id == org.id
     ).first()
     if not sender:
         raise HTTPException(status_code=404, detail="Sender agent not found")
@@ -208,32 +225,31 @@ def verify_interaction(
     if sender.status == "suspended":
         raise HTTPException(status_code=403, detail="Sender agent is suspended")
 
-    # Verify cryptographic signature
     is_valid = CryptoEngine.verify_signature(
         sender.public_key,
         data.message,
         data.signature
     )
 
-    # Log the interaction
     interaction = AgentInteraction(
+        id=str(uuid.uuid4()),
         sender_id=data.sender_id,
         receiver_id=data.receiver_id,
-        message_hash=CryptoEngine.hash_payload(data.message),
+        message_hash=CryptoEngine.hash_payload({"message": data.message}),
         signature=data.signature,
-        is_verified=is_valid,
+        verified=is_valid,
         trust_score_at_time=sender.trust_score
     )
     db.add(interaction)
     db.commit()
 
     return {
-        "is_verified": is_valid,
+        "verified": is_valid,
         "sender_trust_score": sender.trust_score,
         "sender_status": sender.status,
-        "message_hash": CryptoEngine.hash_payload(data.message),
         "safe_to_proceed": is_valid and sender.trust_score >= 50
     }
+
 
 @router.get("/{agent_id}/audit-trail")
 def get_audit_trail(
@@ -241,10 +257,9 @@ def get_audit_trail(
     org: Organization = Depends(get_current_org),
     db: Session = Depends(get_db)
 ):
-    """Get full tamper-proof audit trail for an agent"""
     agent = db.query(Agent).filter(
         Agent.id == agent_id,
-        Agent.org_id == org.id
+        Agent.organization_id == org.id
     ).first()
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
@@ -264,10 +279,12 @@ def get_audit_trail(
         "current_status": agent.status,
         "behavior_logs": [
             {
-                "action": b.action,
+                "action_type": b.action_type,
                 "payload_hash": b.payload_hash,
-                "is_anomaly": b.is_anomaly,
+                "is_anomalous": b.is_anomalous,
                 "anomaly_score": b.anomaly_score,
+                "trust_score_before": b.trust_score_before,
+                "trust_score_after": b.trust_score_after,
                 "timestamp": b.timestamp
             }
             for b in behaviors
@@ -276,7 +293,7 @@ def get_audit_trail(
             {
                 "receiver_id": i.receiver_id,
                 "message_hash": i.message_hash,
-                "is_verified": i.is_verified,
+                "verified": i.verified,
                 "trust_score_at_time": i.trust_score_at_time,
                 "timestamp": i.timestamp
             }
