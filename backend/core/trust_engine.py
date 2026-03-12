@@ -274,15 +274,15 @@ class TrustEngine:
         rule_result = self._apply_rules(agent_id, action, payload, features, now)
 
         # If rules already flagged a critical threat, return immediately
-        if rule_result["severity"] == "critical":
-            return {
-                "anomaly_score": 0.95,
-                "is_anomaly": True,
-                "trust_impact": -25.0,
-                "reason": rule_result["reason"],
-                "detection_method": "rule_based",
-                "features": features
-            }
+       if rule_result["severity"] == "critical":
+    return {
+        "anomaly_score": 0.95,
+        "is_anomaly": True,
+        "trust_impact": -25.0,
+        "reason": " | ".join(rule_result["flags"]) if rule_result["flags"] else "critical_threat",
+        "detection_method": "rule_based",
+        "features": features
+    }
 
         # ── ML SCORING ──
         ml_result = self._ml_score(agent_id, features)
