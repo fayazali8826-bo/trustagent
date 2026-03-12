@@ -23,23 +23,13 @@ class TrustAgent:
         # Log a behavior and get trust score
         result = agent.log("process_payment", payload={"amount": 100})
         print(f"Trust score: {result.trust_score}")
-
-        # Verify an interaction
-        safe = agent.verify(signature="...", message="...")
     """
 
     BASE_URL = "https://trustagent-production.up.railway.app"
 
     def __init__(self, api_key: str, base_url: Optional[str] = None):
-        """
-        Initialize TrustAgent client.
-
-        Args:
-            api_key: Your TrustAgent API key
-            base_url: Optional custom API URL (for self-hosted)
-        """
         if not api_key:
-            raise AuthenticationError("API key is required. Get yours at https://trustagent-production.up.railway.app")
+            raise AuthenticationError("API key is required.")
 
         self.api_key = api_key
         self.base_url = (base_url or self.BASE_URL).rstrip("/")
@@ -85,13 +75,11 @@ class TrustAgent:
 
         Returns:
             Agent instance ready to log behaviors
-
-        Example:
-            agent = ta.register("PaymentBot", description="Handles all payment processing")
         """
         data = self._request("POST", "/api/agents/register", json={
             "name": name,
-            "description": description
+            "description": description,
+            "capabilities": []
         })
         return Agent(client=self, data=data)
 
@@ -104,9 +92,6 @@ class TrustAgent:
 
         Returns:
             Agent instance
-
-        Example:
-            agent = ta.get("agent-uuid-here")
         """
         data = self._request("GET", f"/api/agents/{agent_id}")
         return Agent(client=self, data=data)
@@ -117,11 +102,6 @@ class TrustAgent:
 
         Returns:
             List of Agent instances
-
-        Example:
-            agents = ta.list()
-            for agent in agents:
-                print(f"{agent.name}: {agent.trust_score}")
         """
         data = self._request("GET", "/api/agents/list")
         return [Agent(client=self, data=a) for a in data]
@@ -138,16 +118,6 @@ class TrustAgent:
 
         Returns:
             True if interaction is verified and safe to proceed
-
-        Example:
-            safe = ta.verify_interaction(
-                sender_id="agent-a-id",
-                receiver_id="agent-b-id",
-                message="process_payment",
-                signature="..."
-            )
-            if safe:
-                proceed_with_action()
         """
         data = self._request("POST", "/api/agents/verify-interaction", json={
             "sender_id": sender_id,

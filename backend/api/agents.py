@@ -50,7 +50,7 @@ def register_agent(
 
     agent = Agent(
         name=data.name,
-        org_id=org.id,
+        organization_id=org.id,
         public_key=keypair["public_key"],
         capabilities=data.capabilities,
         trust_score=100.0,
