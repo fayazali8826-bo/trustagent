@@ -711,6 +711,56 @@ footer{background:var(--bg2);border-top:1px solid var(--border);padding:5rem 6% 
 .ns-item{display:flex;align-items:center;gap:.75rem;font-size:.875rem;cursor:pointer;transition:color .2s}
 .ns-item:hover{color:var(--cyan)}
 
+
+/* ─── HAMBURGER ─── */
+.hamburger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;background:transparent;border:1.5px solid var(--border2);border-radius:8px;padding:7px;cursor:pointer}
+.hamburger span{display:block;height:2px;background:var(--text);border-radius:2px;transition:all .3s}
+.hamburger.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+.hamburger.open span:nth-child(2){opacity:0}
+.hamburger.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+
+/* ─── MOBILE MENU ─── */
+#mobile-menu{
+  display:none;
+  position:fixed;top:68px;left:0;right:0;
+  background:var(--bg2);border-bottom:1px solid var(--border);
+  z-index:998;padding:1.5rem 5%;
+  flex-direction:column;gap:0;
+}
+#mobile-menu.open{display:flex}
+.mob-links{display:flex;flex-direction:column;gap:0;margin-bottom:1.5rem}
+.mob-link{
+  display:block;padding:1rem 0;
+  font-size:1rem;font-weight:500;color:var(--text2);
+  border-bottom:1px solid var(--border);cursor:pointer;
+  transition:color .2s;
+}
+.mob-link:last-child{border-bottom:none}
+.mob-link:hover{color:var(--text)}
+.mob-btns{display:flex;flex-direction:column;gap:.75rem;padding-top:.5rem}
+.mob-btn-ghost{
+  width:100%;padding:.875rem;border:1.5px solid var(--border2);border-radius:10px;
+  background:transparent;color:var(--text);font-size:.9rem;font-weight:600;cursor:pointer;
+  transition:all .2s;
+}
+.mob-btn-ghost:hover{border-color:var(--blue)}
+.mob-btn-solid{
+  width:100%;padding:.875rem;border:none;border-radius:10px;
+  background:var(--blue);color:#fff;font-size:.9rem;font-weight:700;cursor:pointer;
+  transition:background .2s;
+}
+.mob-btn-solid:hover{background:var(--blue2)}
+
+@media(max-width:768px){
+  .nav-links{display:none!important}
+  .nav-btns{display:none!important}
+  .hamburger{display:flex}
+}
+@media(min-width:769px){
+  #mobile-menu{display:none!important}
+  .hamburger{display:none!important}
+}
+
 /* ─── MOBILE RESPONSIVE ─── */
 @media(max-width:768px){
 
@@ -830,7 +880,7 @@ footer{background:var(--bg2);border-top:1px solid var(--border);padding:5rem 6% 
 
 <!-- ═══════════ NAVBAR ═══════════ -->
 <nav id="navbar">
-  <div class="nav-brand" onclick="showPage('home')">
+  <div class="nav-brand" onclick="showPage('home');closeMobileMenu()">
     <div class="nav-brand-icon">🛡</div>
     <span class="nav-brand-name">TRUSTAGENT</span>
   </div>
@@ -846,7 +896,25 @@ footer{background:var(--bg2);border-top:1px solid var(--border);padding:5rem 6% 
     <button class="btn-nav-ghost" onclick="openModal('login')">Sign in</button>
     <button class="btn-nav-solid" onclick="openModal('signup')">Get started free</button>
   </div>
+  <button class="hamburger" id="hamburger" onclick="toggleMobileMenu()">
+    <span></span><span></span><span></span>
+  </button>
 </nav>
+<div id="mobile-menu">
+  <div class="mob-links">
+    <span class="mob-link" onclick="showPage('home');closeMobileMenu()">Home</span>
+    <span class="mob-link" onclick="scrollToSection('features');closeMobileMenu()">Features</span>
+    <span class="mob-link" onclick="scrollToSection('pricing');closeMobileMenu()">Pricing</span>
+    <span class="mob-link" onclick="showPage('docs');closeMobileMenu()">Docs</span>
+    <span class="mob-link" onclick="showPage('blog');closeMobileMenu()">Blog</span>
+    <span class="mob-link" onclick="showPage('about');closeMobileMenu()">About</span>
+    <span class="mob-link" onclick="showPage('contact');closeMobileMenu()">Contact</span>
+  </div>
+  <div class="mob-btns">
+    <button class="mob-btn-ghost" onclick="openModal('login');closeMobileMenu()">Sign in</button>
+    <button class="mob-btn-solid" onclick="openModal('signup');closeMobileMenu()">Get started free</button>
+  </div>
+</div>
 
 <!-- ═══════════════════════════════════════
      HOME PAGE
