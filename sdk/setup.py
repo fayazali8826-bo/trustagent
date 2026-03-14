@@ -6,7 +6,7 @@ with open("README.md", "r", encoding="utf-8") as f:
 setup(
     name="cllova",
     version="1.0.0",
-    author="Ali Khan",
+    author="Fayaz Ali",
     author_email="hello@trustagent.io",
     description="Cryptographic identity + ML behavioral trust scoring for AI agent networks",
     long_description=long_description,
